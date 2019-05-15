@@ -15,11 +15,7 @@ export class HomeComponent implements OnInit {
 
   functie() {
     console.log("AAa");
-    this.flickrauthService.getHistory().subscribe((result: any) => {
-
-      this.result = result;
-      console.log(result);
-    });
+    
   }
 
 
