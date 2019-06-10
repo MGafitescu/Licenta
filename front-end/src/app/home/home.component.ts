@@ -1,26 +1,15 @@
 import { Component, OnInit } from '@angular/core';
-import { FlickrauthService } from '../flickrauth.service'
 
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
-  styleUrls: ['./home.component.css']
+  styleUrls: ['./home.component.sass']
 })
 export class HomeComponent implements OnInit {
 
-  constructor(private flickrauthService: FlickrauthService) { }
-
-  result: any;
-
+  constructor() { }
 
   ngOnInit() {
   }
-
-  functie() {
-    console.log("AAa");
-
-  }
-
-
 
 }

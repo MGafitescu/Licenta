@@ -1,9 +1,14 @@
-from authlib.flask.client import OAuth
-from flask import Flask, redirect, session, jsonify
 import json
 import uuid
+import base64
+
 import requests
+from authlib.flask.client import OAuth
+from flask import Flask, redirect, session, jsonify, request
+
 import repository
+import prediction
+import time
 
 app = Flask(__name__)
 app.config.from_pyfile("app.cfg")
@@ -43,10 +48,54 @@ oauth.register(
 
 @app.route("/")
 def hello():
-    contacts = get_contacts()
-    for contact in contacts:
-        get_photos_of_contact(contact)
+    search_photos("contacts", "cat")
     return "A"
+
+
+@app.route('/addImage', methods=['POST', 'GET'])
+def addImage():
+    user = request.json['user']
+    session["current_user"] = user
+    name = request.json['name']
+    payload = request.json['file']
+    option = request.json['option']
+    originalImage = base64.b64decode(payload)
+    current_image = prediction.predict(originalImage)
+    current_image = [x[1] for x in current_image if x[2] > 0.2]
+    t = time.time()
+    if option == 'Profile':
+        images = get_photos_of_contact("me")
+        captioned_images = []
+        for image in images:
+            captioned_images.append(get_labels(image))
+        returned_images = similar_images(current_image, captioned_images)
+    elif option == 'Contacts':
+        searched_images = []
+        for label in current_image:
+            searched_images = searched_images + search_photos("contacts", label)
+        captioned_images = []
+        for image in searched_images:
+            captioned_images.append(get_labels(image))
+        returned_images = similar_images(current_image, captioned_images)
+    else:
+        searched_images = []
+        for label in current_image:
+            searched_images = searched_images + search_photos("all", label)
+        captioned_images = []
+        print(searched_images)
+        for image in searched_images:
+            captioned_images.append(get_labels(image))
+        returned_images = similar_images(current_image, captioned_images)
+
+    data = {
+        "labels": current_image,
+        "images": returned_images
+    }
+    print("Total timp: ", time.time() - t)
+    return jsonify(json.dumps(data)), 200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+    }
 
 
 @app.route("/login")
@@ -122,7 +171,51 @@ def get_photos_of_contact(contact):
     response = oauth.flickr.get(request_url).json()
     photo_list = []
     for photo in response.get("photos", {}).get("photo", []):
-        print(photo_to_url(photo))
+        photo_list.append(photo_to_url(photo))
+    return photo_list
+
+
+def search_photos(mode, text):
+    api_key = app.config["FLICKR_CLIENT_ID"]
+    method = "flickr.photos.search"
+    media = "photos"
+    sort = "relevance"
+    response_format = "json"
+    if mode == "me":
+        request_url = "rest?method={}&api_key={}&format={}&nojsoncallback={}" \
+                      "&text={}&user_id={}&media={}&sort={}".format(method,
+                                                                    api_key,
+                                                                    response_format,
+                                                                    1,
+                                                                    text,
+                                                                    mode,
+                                                                    media,
+                                                                    sort)
+    elif mode == "contacts":
+        request_url = "rest?method={}&api_key={}&format={}&nojsoncallback={}" \
+                      "&text={}&contacts={}&media={}&sort={}".format(method,
+                                                                     api_key,
+                                                                     response_format,
+                                                                     1,
+                                                                     text,
+                                                                     "all",
+                                                                     media,
+                                                                     sort)
+    else:
+        request_url = "rest?method={}&api_key={}&format={}&nojsoncallback={}" \
+                      "&text={}&media={}&sort={}".format(method,
+                                                         api_key,
+                                                         response_format,
+                                                         1,
+                                                         text,
+                                                         media,
+                                                         sort)
+    response = oauth.flickr.get(request_url).json()
+    photo_list = []
+    for photo in response.get("photos", {}).get("photo", []):
+        photo_list.append(photo_to_url(photo))
+    print(len(photo_list))
+    return photo_list
 
 
 def photo_to_url(photo):
@@ -133,6 +226,24 @@ def photo_to_url(photo):
     data["secret"] = photo.get("secret")
     photo_url = "https://farm{farm-id}.staticflickr.com/{server-id}/{id}_{secret}.jpg".format(**data)
     return photo_url
+
+
+def get_labels(image):
+    response = requests.get(image)
+    response = response.content
+    labels = prediction.predict(response)
+    labels = [x[1] for x in labels if x[2] > 0.2]
+    return (image, labels)
+
+
+def similar_images(current_image, image_list):
+    similar_images = set()
+    for image, labels in image_list:
+        print(labels)
+        for i in range(0, len(current_image)):
+            if current_image[i] in labels:
+                similar_images.add(image)
+    return list(similar_images)
 
 
 if __name__ == "__main__":

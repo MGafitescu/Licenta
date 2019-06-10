@@ -1,0 +1,31 @@
+<input [hidden]="true" #file id="file-upload" type="file" accept='image/*' (change)="preview(file)" />
+<label for="file-upload" mat-raised-button color="primary">Choose Files</label>
+<img [src]="imageUrl" height="200" *ngIf="imageUrl">
+<br>
+<mat-radio-group [(ngModel)]="selectedOption">
+  <mat-radio-button class="example-radio-button" *ngFor="let option of options" [value]="option">
+    {{option}}
+  </mat-radio-button>
+</mat-radio-group>
+<button mat-raised-button color="primary" (click)="upload()" style="margin-left:1rem;">Upload</button>
+
+<mat-spinner *ngIf="loading"></mat-spinner>
+
+<section *ngIf="result">
+  Labels for this image:
+  <div *ngIf="result.labels.length == 0">
+      Could not find labels for the image.
+  </div>
+  <ul>
+    <li *ngFor="let label of result.labels">
+      {{label}}
+    </li>
+  </ul>
+  Similar images from Flickr:
+  <div *ngIf="result.images.length == 0">
+        Could not find similar images.
+    </div>
+  <mat-card *ngFor="let image of result.images" class="example-card" >
+    <img mat-card-image [src]=image>
+  </mat-card>
+</section>

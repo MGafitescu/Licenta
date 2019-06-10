@@ -1,12 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 
-import { FlickrauthService } from './flickrauth.service';
+import { ImageServiceService } from './image-service.service';
 
-describe('FlickrauthService', () => {
+describe('ImageServiceService', () => {
   beforeEach(() => TestBed.configureTestingModule({}));
 
   it('should be created', () => {
-    const service: FlickrauthService = TestBed.get(FlickrauthService);
+    const service: ImageServiceService = TestBed.get(ImageServiceService);
     expect(service).toBeTruthy();
   });
 });
